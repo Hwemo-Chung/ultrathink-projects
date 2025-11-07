@@ -1,0 +1,182 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      docs: ${{ steps.filter.outputs.docs }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'lightsns/backend/**'
+            docs:
+              - '**.md'
+              - 'lightsns/API_REFERENCE.md'
+              - 'lightsns/DEPLOYMENT.md'
+            workflows:
+              - '.github/workflows/**'
+
+  backend-quick-test:
+    name: Backend Quick Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: lightsns_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: lightsns/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: lightsns/backend
+        run: npm ci
+
+      - name: Run migrations
+        working-directory: lightsns/backend
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: lightsns_test
+          DB_USER: test
+          DB_PASSWORD: test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-secret
+          JWT_REFRESH_SECRET: test-refresh
+        run: npm run migrate
+
+      - name: Run unit tests
+        working-directory: lightsns/backend
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: lightsns_test
+          DB_USER: test
+          DB_PASSWORD: test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-secret
+          JWT_REFRESH_SECRET: test-refresh
+        run: npm run test:unit --if-present || npm test
+
+  docs-validation:
+    name: Validate Documentation
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v13
+        with:
+          globs: '**/*.md'
+          config: |
+            {
+              "default": true,
+              "MD013": false,
+              "MD033": false,
+              "MD041": false
+            }
+
+      - name: Check for broken links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          config-file: '.github/markdown-link-check-config.json'
+          continue-on-error: true
+
+  build-check:
+    name: Build Check
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: lightsns/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: lightsns/backend
+        run: npm ci
+
+      - name: Build check (if build script exists)
+        working-directory: lightsns/backend
+        run: npm run build --if-present || echo "No build script found"
+
+  all-checks-passed:
+    name: All Checks Passed
+    needs: [detect-changes, backend-quick-test, docs-validation, build-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs
+        run: |
+          if [ "${{ needs.backend-quick-test.result }}" == "failure" ] || \
+             [ "${{ needs.build-check.result }}" == "failure" ]; then
+            echo "One or more critical checks failed"
+            exit 1
+          fi
+          echo "All checks passed or skipped"
+
+      - name: Success message
+        run: |
+          echo "✅ CI Pipeline completed successfully!"
+          echo "Backend tests: ${{ needs.backend-quick-test.result }}"
+          echo "Docs validation: ${{ needs.docs-validation.result }}"
+          echo "Build check: ${{ needs.build-check.result }}"

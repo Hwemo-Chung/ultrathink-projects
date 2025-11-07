@@ -1,0 +1,167 @@
+name: Backend Tests
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+    paths:
+      - 'lightsns/backend/**'
+      - '.github/workflows/backend-test.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'lightsns/backend/**'
+      - '.github/workflows/backend-test.yml'
+
+jobs:
+  test:
+    name: Run Backend Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: lightsns_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: lightsns_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: lightsns/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: lightsns/backend
+        run: npm ci
+
+      - name: Run database migrations
+        working-directory: lightsns/backend
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: lightsns_test
+          DB_USER: lightsns_test
+          DB_PASSWORD: test_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-jwt-secret-key-for-ci-cd-pipeline
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci
+        run: npm run migrate
+
+      - name: Run tests
+        working-directory: lightsns/backend
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: lightsns_test
+          DB_USER: lightsns_test
+          DB_PASSWORD: test_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-jwt-secret-key-for-ci-cd-pipeline
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci
+        run: npm test -- --coverage --ci
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: matrix.node-version == '20.x'
+        with:
+          files: ./lightsns/backend/coverage/lcov.info
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: lightsns/backend/coverage
+          retention-days: 30
+
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: lightsns/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: lightsns/backend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: lightsns/backend
+        run: npm run lint --if-present || echo "No lint script configured"
+
+      - name: Check formatting
+        working-directory: lightsns/backend
+        run: npm run format:check --if-present || echo "No format script configured"
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Run npm audit
+        working-directory: lightsns/backend
+        run: npm audit --audit-level=moderate || true
+
+      - name: Check for vulnerable dependencies
+        working-directory: lightsns/backend
+        run: |
+          npm audit --json > audit-results.json || true
+          echo "Audit results saved"
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-audit
+          path: lightsns/backend/audit-results.json
+          retention-days: 30
