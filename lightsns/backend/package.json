@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "dev:debug": "nodemon --inspect src/index.js",
+    "debug": "node --inspect-brk src/index.js",
     "test": "NODE_ENV=test jest --coverage --verbose",
     "test:watch": "NODE_ENV=test jest --watch",
     "test:unit": "NODE_ENV=test jest __tests__/models --coverage",

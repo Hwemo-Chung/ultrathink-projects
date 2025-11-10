@@ -5,7 +5,16 @@
       "Bash(git log:*)",
       "Bash(git checkout:*)",
       "Bash(git merge:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Complete LightSNS MVP implementation with comprehensive features\n\nImplement full-featured LightSNS social network backend system with:\n\nCore Features:\n- User authentication and authorization with JWT\n- Real-time messaging system with WebSocket\n- Follow/unfollow system with user profiles\n- Posts system with feed, likes, and emoji reactions\n- Notification system integrated with all features\n- Profile image upload and processing\n\nTechnical Improvements:\n- Comprehensive TDD test suite with integration and unit tests\n- Transaction support and input sanitization for security\n- CI/CD pipeline with GitHub Actions\n- Docker containerization\n- Redis integration for caching and real-time features\n- Health check endpoints with detailed diagnostics\n\nDocumentation:\n- Complete API reference documentation\n- Architecture redesign analysis for low-bandwidth optimization\n- UI/UX design guidelines for low-bandwidth environments\n- Comprehensive deployment guide\n- Project completion report with all sprint details\n- Pull request description and development guide\n\nInfrastructure:\n- GitHub Actions workflows for CI/CD, testing, and releases\n- Docker Compose for local development\n- Migration scripts for database schema management\n\nThis commit represents the complete MVP implementation of LightSNS\nwith 81 files changed and extensive feature development.\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Complete LightSNS MVP implementation with comprehensive features\n\nImplement full-featured LightSNS social network backend system with:\n\nCore Features:\n- User authentication and authorization with JWT\n- Real-time messaging system with WebSocket\n- Follow/unfollow system with user profiles\n- Posts system with feed, likes, and emoji reactions\n- Notification system integrated with all features\n- Profile image upload and processing\n\nTechnical Improvements:\n- Comprehensive TDD test suite with integration and unit tests\n- Transaction support and input sanitization for security\n- CI/CD pipeline with GitHub Actions\n- Docker containerization\n- Redis integration for caching and real-time features\n- Health check endpoints with detailed diagnostics\n\nDocumentation:\n- Complete API reference documentation\n- Architecture redesign analysis for low-bandwidth optimization\n- UI/UX design guidelines for low-bandwidth environments\n- Comprehensive deployment guide\n- Project completion report with all sprint details\n- Pull request description and development guide\n\nInfrastructure:\n- GitHub Actions workflows for CI/CD, testing, and releases\n- Docker Compose for local development\n- Migration scripts for database schema management\n\nThis commit represents the complete MVP implementation of LightSNS\nwith 81 files changed and extensive feature development.\nEOF\n)\")",
+      "mcp__serena__list_dir",
+      "mcp__serena__initial_instructions",
+      "mcp__serena__check_onboarding_performed",
+      "Bash(npm install:*)",
+      "Bash(npx react-native@latest init LightSNSMobile --directory mobile --skip-install)",
+      "Bash(npx @react-native-community/cli@latest init LightSNSMobile --directory mobile --skip-install)",
+      "Bash(adb devices:*)",
+      "Bash(npm run android:*)",
+      "Bash(tee:*)"
     ]
   },
   "enabledMcpjsonServers": [
